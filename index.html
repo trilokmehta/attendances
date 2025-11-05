@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - ERPLI</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <style>
+        /* Custom Global Styles (Light Theme) */
+        body {
+            font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #F9FAFB; /* gray-50 */
+            color: #1F2937; /* gray-800 */
+        }
+        
+        .form-label { display: block; margin-bottom: 0.5rem; font-weight: 500; color: #374151; }
+        .form-input { width: 100%; border: 1px solid #D1D5DB; border-radius: 0.5rem; padding: 0.75rem 1rem; color: #111827; }
+        .form-input:focus { outline: none; border-color: #3B82F6; box-shadow: 0 0 0 2px #BFDBFE; }
+        
+        .form-submit-button { display: flex; justify-content: center; align-items: center; gap: 0.5rem; background-color: #3B82F6; color: #ffffff; font-weight: 600; padding: 0.75rem 1.5rem; border-radius: 0.5rem; transition: background-color 0.2s ease; }
+        .form-submit-button:hover { background-color: #2563EB; }
+        .form-submit-button:disabled { background-color: #9CA3AF; cursor: not-allowed; }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-md bg-white p-8 rounded-2xl shadow-xl border border-gray-200">
+        <h1 class="text-3xl font-bold text-center text-gray-900 mb-2">ERPLI Login</h1>
+        <p class="text-center text-gray-500 mb-6">Admin & Teacher Portal</p>
+        
+        <form id="login-form">
+            <div class="mb-4">
+                <label for="email" class="form-label">Email</label>
+                <input type="email" id="email" required class="form-input" placeholder="you@example.com">
+            </div>
+            
+            <div class="mb-6">
+                <label for="password" class="form-label">Password</label>
+                <input type="password" id="password" required class="form-input" placeholder="••••••••">
+            </div>
+            
+            <button type="submit" id="login-button" class="form-submit-button w-full">
+                Login
+            </button>
+        </form>
+        
+        <p id="auth-error" class="text-red-500 text-center mt-4 text-sm"></p>
+    </div>
+
+    <script type="module">
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
+
+        const SUPABASE_URL = 'https://mclizdhmmzckhjnocktz.supabase.co'
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1jbGl6ZGhtbXpja2hqbm9ja3R6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIyNDk5MzUsImV4cCI6MjA3NzgyNTkzNX0.zKvs2XDOvcJfb_mCDHOMsJwRKvUViWWTjZRcOKExAfI'
+
+        const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+
+        const loginForm = document.getElementById('login-form');
+        const emailInput = document.getElementById('email');
+        const passwordInput = document.getElementById('password');
+        const loginButton = document.getElementById('login-button');
+        const authError = document.getElementById('auth-error');
+
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault(); 
+            authError.textContent = '';
+            loginButton.textContent = 'Logging in...';
+            loginButton.disabled = true;
+
+            const email = emailInput.value;
+            const password = passwordInput.value;
+
+            // 1. Sign in the user
+            const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
+                email: email,
+                password: password,
+            });
+
+            if (loginError) {
+                console.error('Login error:', loginError.message);
+                authError.textContent = 'Invalid login credentials.';
+                loginButton.textContent = 'Login';
+                loginButton.disabled = false;
+                return;
+            }
+
+            // 2. Login was good. Now check their profile for role and status.
+            const user = loginData.user;
+            const { data: profile, error: profileError } = await supabase
+                .from('profiles')
+                .select('role, is_active') // Get role AND active status
+                .eq('id', user.id)
+                .single();
+
+            if (profileError) {
+                console.error('Profile error:', profileError.message);
+                authError.textContent = 'Error finding your profile. Please contact support.';
+                await supabase.auth.signOut(); 
+                loginButton.textContent = 'Login';
+                loginButton.disabled = false;
+                return;
+            }
+
+            // 3. This is the new, combined redirect logic
+            if (profile.role === 'admin') {
+                // SUCCESS (Admin): Send to admin dashboard
+                window.location.href = 'admin_dashboard.html';
+
+            } else if (profile.role === 'teacher') {
+                
+                if (profile.is_active) {
+                    // SUCCESS (Teacher): Send to teacher dashboard
+                    window.location.href = 'teacher_dashboard.html';
+                } else {
+                    // FAILURE (Teacher is not active)
+                    authError.textContent = 'Your teacher account is not active. Please contact your admin.';
+                    await supabase.auth.signOut();
+                    loginButton.textContent = 'Login';
+                    loginButton.disabled = false;
+                }
+
+            } else {
+                // FAILURE (No role)
+                authError.textContent = 'You do not have a valid role in this system.';
+                await supabase.auth.signOut();
+                loginButton.textContent = 'Login';
+                loginButton.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>
