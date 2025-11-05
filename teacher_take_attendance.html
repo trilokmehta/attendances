@@ -8,28 +8,44 @@
     <script src="https://cdn.tailwindcss.com"></script>
 
     <style>
-        /* All CSS is in this file */
         body { font-family: "Inter", sans-serif; background-color: #F9FAFB; color: #1F2937; }
-        .form-label { display: block; margin-bottom: 0.5rem; font-weight: 500; color: #374151; }
+        
+        /* Form Button (from other file) */
         .form-submit-button { display: flex; justify-content: center; align-items: center; gap: 0.5rem; background-color: #3B82F6; color: #ffffff; font-weight: 600; padding: 0.75rem 1.5rem; border-radius: 0.5rem; transition: background-color 0.2s ease; }
         .form-submit-button:hover { background-color: #2563EB; }
         .form-submit-button:disabled { background-color: #9CA3AF; cursor: not-allowed; }
 
-        /* Attendance Button Group */
-        .attendance-btn-group { display: flex; border-radius: 0.375rem; overflow: hidden; }
+        /* NEW MOBILE-FRIENDLY BUTTONS
+          This is the 2x2 grid style
+        */
+        .attendance-btn-group {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr)); /* 2 columns */
+            border-radius: 0.375rem; /* 6px */
+            overflow: hidden;
+            border: 1px solid #D1D5DB; /* gray-300 */
+        }
         .attendance-btn-group input[type="radio"] { display: none; }
+        
         .attendance-btn {
-            padding: 0.5rem 0.75rem;
-            border: 1px solid #D1D5DB;
-            color: #4B5563;
+            padding: 0.75rem 0.5rem; /* 12px 8px */
+            color: #4B5563; /* gray-600 */
             font-weight: 500;
-            font-size: 0.75rem;
+            font-size: 0.875rem; /* 14px */
             cursor: pointer;
-            flex-grow: 1;
             text-align: center;
             transition: all 0.2s ease;
+            /* Add borders to separate the grid */
+            border-bottom: 1px solid #E5E7EB; /* gray-200 */
+            border-right: 1px solid #E5E7EB; /* gray-200 */
         }
-        .attendance-btn:not(:first-child) { border-left-width: 0; }
+        
+        /* Fix borders for the 2x2 grid */
+        .btn-present, .btn-late { border-right-width: 1px; }
+        .btn-absent, .btn-excused { border-right-width: 0; }
+        .btn-present, .btn-absent { border-bottom-width: 1px; }
+        .btn-late, .btn-excused { border-bottom-width: 0; }
+
 
         /* Present */
         .attendance-btn-group input[type="radio"]:checked + .attendance-btn.btn-present { background-color: #16A34A; color: white; border-color: #16A34A; }
@@ -39,11 +55,25 @@
         .attendance-btn-group input[type="radio"]:checked + .attendance-btn.btn-late { background-color: #F59E0B; color: white; border-color: #F59E0B; }
         /* Excused */
         .attendance-btn-group input[type="radio"]:checked + .attendance-btn.btn-excused { background-color: #6B7280; color: white; border-color: #6B7280; }
+        
+        /* NEW STICKY FOOTER
+          This keeps the save button visible on mobile
+        */
+        #save-footer {
+            position: sticky;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background-color: rgba(255, 255, 255, 0.9);
+            padding: 1rem;
+            border-top: 1px solid #E5E7EB;
+            backdrop-filter: blur(8px);
+        }
     </style>
 </head>
 <body class="bg-gray-50">
 
-    <main class="max-w-4xl mx-auto p-4 md:p-8">
+    <main class="max-w-2xl mx-auto p-4 md:p-8">
         
         <div class="flex items-center gap-4 mb-6">
             <a href="teacher_attendance.html" class="flex items-center justify-center p-2 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-900">
@@ -57,44 +87,31 @@
             <p class="text-sm text-gray-600">Date: <span id="attendance-date-display">...</span></p>
             <p id="status-message" class="text-sm font-medium mt-2 text-blue-600"></p>
         </div>
-
-        <div class="w-full overflow-x-auto bg-white rounded-lg shadow-md">
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
-                    <tr>
-                        <th scope="col" class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student Name</th>
-                        <th scope="col" class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Set Status</th>
-                    </tr>
-                </thead>
-                <tbody id="student-list" class="bg-white divide-y divide-gray-200">
-                    <tr><td colspan="2" class="py-4 px-4 text-center text-gray-500">Loading students...</td></tr>
-                </tbody>
-            </table>
+        
+        <div id="student-list" class="space-y-3 mb-24">
+            <p class="py-4 px-4 text-center text-gray-500">Loading students...</p>
         </div>
         
-        <button id="save-attendance-button" class="form-submit-button w-full mt-6">
+    </main>
+    
+    <footer id="save-footer">
+        <button id="save-attendance-button" class="form-submit-button w-full">
             Save Attendance
         </button>
-        
-    </main>
+    </footer>
 
 
     <script type="module">
-        // 1. Import the Supabase library
         import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
 
-        // 2. Add your Supabase keys here
         const SUPABASE_URL = 'https://mclizdhmmzckhjnocktz.supabase.co'
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1jbGl6ZGhtbXpja2hqbm9ja3R6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIyNDk5MzUsImV4cCI6MjA3NzgyNTkzNX0.zKvs2XDOvcJfb_mCDHOMsJwRKvUViWWTjZRcOKExAfI'
         const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 
-        // Global variables
         let currentUser = null;
         let userProfile = null;
         let batchId = null;
         let attendanceDate = null;
-
-        // --- 3. CORE LOGIC ---
         
         // Find URL parameters (batchId and date)
         function getUrlParams() {
@@ -113,25 +130,26 @@
         // Fetches necessary data and renders the student list
         async function loadAttendanceData() {
             const studentList = document.getElementById('student-list');
-            studentList.innerHTML = '<tr><td colspan="2" class="py-4 px-4 text-center text-gray-500">Fetching data...</td></tr>';
+            studentList.innerHTML = '<p class="py-4 px-4 text-center text-gray-500">Fetching data...</p>';
             
             // Get Batch Name
-            const { data: batchData, error: batchError } = await supabase
-                .from('batches')
-                .select('name')
-                .eq('id', batchId)
-                .single();
-                
-            if (batchError) {
-                 document.getElementById('batch-name').textContent = 'ERROR';
-                 alert('Could not find batch name.');
-            } else {
-                 document.getElementById('batch-name').textContent = batchData.name;
+            try {
+                const { data: batchData, error: batchError } = await supabase
+                    .from('batches')
+                    .select('name')
+                    .eq('id', batchId)
+                    .single();
+                    
+                if (batchError) throw batchError;
+                document.getElementById('batch-name').textContent = batchData.name;
+            } catch (error) {
+                document.getElementById('batch-name').textContent = 'ERROR';
+                alert('Could not find batch name.');
             }
             
             document.getElementById('attendance-date-display').textContent = attendanceDate;
             
-            // 1. Get all students in this batch (Security is handled by RLS on 'students' table)
+            // 1. Get all students in this batch
             const { data: students, error: studentError } = await supabase
                 .from('students')
                 .select('id, full_name')
@@ -140,7 +158,7 @@
                 
             if (studentError) {
                 alert('Error fetching students: ' + studentError.message);
-                studentList.innerHTML = '<tr><td colspan="2" class="py-4 px-4 text-center text-red-500">Error loading students.</td></tr>';
+                studentList.innerHTML = '<p class="py-4 px-4 text-center text-red-500">Error loading students.</p>';
                 return;
             }
             
@@ -151,7 +169,6 @@
                 .eq('batch_id', batchId)
                 .eq('date', attendanceDate);
             
-            // Create map for easy lookup
             const statusMap = new Map();
             if (attendanceRecords) {
                 attendanceRecords.forEach(record => {
@@ -159,13 +176,20 @@
                 });
             }
 
-            // Render the list
             studentList.innerHTML = '';
             let isEditing = attendanceRecords && attendanceRecords.length > 0;
             document.getElementById('status-message').textContent = isEditing ? 'Editing previously saved attendance.' : 'Marking new attendance.';
 
+            if (students.length === 0) {
+                 studentList.innerHTML = '<p class="py-4 px-4 text-center text-gray-500">No students found in this batch.</p>';
+                 return;
+            }
+
+            // 3. Render the new "card" list
             students.forEach(student => {
-                const row = document.createElement('tr');
+                const card = document.createElement('div');
+                card.className = "bg-white rounded-lg shadow p-4"; // Mobile-friendly card
+                
                 const savedStatus = statusMap.get(student.id) || 'present'; // Default to 'present'
                 const radioName = `status-${student.id}`;
 
@@ -174,29 +198,34 @@
                 const isLate = savedStatus === 'late' ? 'checked' : '';
                 const isExcused = savedStatus === 'excused' ? 'checked' : '';
                 
-                row.innerHTML = `
-                    <td class="py-3 px-4 text-sm font-medium text-gray-900">${student.full_name}</td>
-                    <td class="py-3 px-4 text-sm">
-                        <div class="flex attendance-btn-group" role="radiogroup">
-                            <input type="radio" id="${radioName}-p" name="${radioName}" value="present" ${isPresent} data-student-id="${student.id}">
-                            <label for="${radioName}-p" class="attendance-btn btn-present">Present</label>
-                            
-                            <input type="radio" id="${radioName}-a" name="${radioName}" value="absent" ${isAbsent} data-student-id="${student.id}">
-                            <label for="${radioName}-a" class="attendance-btn btn-absent">Absent</label>
-                            
-                            <input type="radio" id="${radioName}-l" name="${radioName}" value="late" ${isLate} data-student-id="${student.id}">
-                            <label for="${radioName}-l" class="attendance-btn btn-late">Late</label>
-                            
-                            <input type="radio" id="${radioName}-e" name="${radioName}" value="excused" ${isExcused} data-student-id="${student.id}">
-                            <label for="${radioName}-e" class="attendance-btn btn-excused">Excused</label>
+                // NEW: This is the card template
+                card.innerHTML = `
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+                        <p class="text-lg font-medium text-gray-900 mb-3 sm:mb-0">
+                            ${student.full_name}
+                        </p>
+                        
+                        <div class="w-full sm:w-auto sm:max-w-xs">
+                            <div class="flex attendance-btn-group" role="radiogroup">
+                                <input type="radio" id="${radioName}-p" name="${radioName}" value="present" ${isPresent} data-student-id="${student.id}">
+                                <label for="${radioName}-p" class="attendance-btn btn-present">Present</label>
+                                
+                                <input type="radio" id="${radioName}-a" name="${radioName}" value="absent" ${isAbsent} data-student-id="${student.id}">
+                                <label for="${radioName}-a" class="attendance-btn btn-absent">Absent</label>
+                                
+                                <input type="radio" id="${radioName}-l" name="${radioName}" value="late" ${isLate} data-student-id="${student.id}">
+                                <label for="${radioName}-l" class="attendance-btn btn-late">Late</label>
+                                
+                                <input type="radio" id="${radioName}-e" name="${radioName}" value="excused" ${isExcused} data-student-id="${student.id}">
+                                <label for="${radioName}-e" class="attendance-btn btn-excused">Excused</label>
+                            </div>
                         </div>
-                    </td>
+                    </div>
                 `;
-                studentList.appendChild(row);
+                studentList.appendChild(card);
             });
         }
         
-        // Save the attendance data
         async function saveAttendance() {
             const saveButton = document.getElementById('save-attendance-button');
             saveButton.textContent = 'Saving...';
@@ -205,7 +234,7 @@
             const studentList = document.getElementById('student-list');
             const allRadioButtons = studentList.querySelectorAll('input[type="radio"]:checked');
             
-            const recordsToUpsert = []; // 'Upsert' = Update if exists, Insert if new
+            const recordsToUpsert = [];
             
             allRadioButtons.forEach(radio => {
                 recordsToUpsert.push({
@@ -225,7 +254,6 @@
                 return;
             }
 
-            // Use 'upsert' to save. This is powerful.
             const { error } = await supabase
                 .from('attendance')
                 .upsert(recordsToUpsert, { onConflict: 'student_id, batch_id, date' });
@@ -235,36 +263,64 @@
                 alert('Error: ' + error.message);
             } else {
                 alert('Attendance saved successfully!');
+                // Go back to the selector page after saving
+                window.location.href = 'teacher_attendance.html';
             }
             
             saveButton.textContent = 'Save Attendance';
             saveButton.disabled = false;
         }
 
-
-        // --- 4. STARTUP FUNCTIONS ---
+        // --- REAL AUTH CHECK ---
         async function checkAuth() {
-            // (Security check logic removed for brevity, assuming it sends userProfile)
-            // For this file, we ONLY check the URL params first.
-            if (!getUrlParams()) return;
+            // First, check if we have the needed URL params
+            if (!getUrlParams()) return; // This will redirect if params are missing
+
+            // Now, do the full user auth check
+            const resp = await supabase.auth.getSession()
+            const data = resp?.data ?? null
+            const session = data?.session ?? null
+            const sessionError = resp?.error ?? null
+
+            if (sessionError || !session) {
+                window.location.href = 'teacher_login.html'
+                return
+            }
+            currentUser = session.user
+
+            const { data: profile, error: profileError } = await supabase
+                .from('profiles')
+                .select('role, institute_id, is_active, can_manage_attendance')
+                .eq('id', currentUser.id)
+                .single()
+
+            if (profileError || !profile) {
+                try { await supabase.auth.signOut() } catch (e) { /* ignore */ }
+                window.location.href = 'teacher_login.html'
+                return
+            }
+            userProfile = profile
+
+            if (profile.role !== 'teacher' || !profile.is_active) {
+                alert('You are not an active teacher. Please contact your admin.')
+                try { await supabase.auth.signOut() } catch (e) { /* ignore */ }
+                window.location.href = 'teacher_login.html'
+                return
+            }
             
-            // Assume Auth check passes and sets userProfile and currentUser
-            // You must copy the checkAuth function from teacher_attendance.html here!
-            
-            // HACK: Assuming you copied the full checkAuth here and it passed:
-            // if (!window.currentUser || window.userProfile.role !== 'teacher') return;
-            
-            // FOR TESTING ONLY (Replace with real checkAuth when merging files)
-            const fakeProfile = { full_name: 'Test Teacher', institute_id: 'a4dfdcf2-4978-4b2e-a5e4-f6939ef18ba7', role: 'teacher' };
-            window.currentUser = { id: 'some-teacher-id' };
-            window.userProfile = fakeProfile;
-            
+            // PERMISSION CHECK
+            if (!userProfile.can_manage_attendance) {
+                 alert('You do not have permission to manage attendance. Redirecting...');
+                 window.location.href = 'teacher_dashboard.html'; // or wherever is safe
+                 return;
+            }
+
+            // If all checks pass, run the page logic
             document.getElementById('save-attendance-button').addEventListener('click', saveAttendance);
             loadAttendanceData();
         }
         
-        // This file needs a full Auth check like all others to work
-        checkAuth();
+        checkAuth(); // Start the app
     </script>
 </body>
 </html>
