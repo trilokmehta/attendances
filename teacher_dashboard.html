@@ -219,7 +219,7 @@
         async function checkAuth() {
             const { data: { session }, error: sessionError } = await supabase.auth.getSession();
             if (sessionError || !session) {
-                window.location.href = 'teacher_login.html';
+                window.location.href = 'index.html';
                 return;
             }
             currentUser = session.user;
@@ -233,7 +233,7 @@
                 
             if (profileError) {
                 await supabase.auth.signOut();
-                window.location.href = 'teacher_login.html';
+                window.location.href = 'index.html';
                 return;
             }
             
@@ -243,7 +243,7 @@
             if (profile.role !== 'teacher' || !profile.is_active) {
                 alert('You are not an active teacher. Please contact your admin.');
                 await supabase.auth.signOut();
-                window.location.href = 'teacher_login.html';
+                window.location.href = 'index.html';
                 return;
             }
             
@@ -261,7 +261,7 @@
             
             logoutButton.addEventListener('click', async () => {
                 await supabase.auth.signOut();
-                window.location.href = 'teacher_login.html';
+                window.location.href = 'index.html';
             });
 
             // Set user email and role

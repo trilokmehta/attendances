@@ -140,7 +140,7 @@
             const sessionError = resp?.error ?? null
 
             if (sessionError || !session) {
-                window.location.href = 'teacher_login.html'
+                window.location.href = 'index.html'
                 return
             }
 
@@ -154,19 +154,19 @@
 
             if (profileError || !profile) {
                 try { await supabase.auth.signOut() } catch (e) { /* ignore */ }
-                window.location.href = 'teacher_login.html'
+                window.location.href = 'index.html'
                 return
             }
             userProfile = profile
             if (typeof profile.role === 'undefined' || typeof profile.is_active === 'undefined') {
                 try { await supabase.auth.signOut() } catch (e) { /* ignore */ }
-                window.location.href = 'teacher_login.html'
+                window.location.href = 'index.html'
                 return
             }
             if (profile.role !== 'teacher' || !profile.is_active) {
                 alert('You are not an active teacher. Please contact your admin.')
                 try { await supabase.auth.signOut() } catch (e) { /* ignore */ }
-                window.location.href = 'teacher_login.html'
+                window.location.href = 'index.html'
                 return
             }
 
@@ -183,7 +183,7 @@
             if (logoutButton) {
                 logoutButton.addEventListener('click', async () => {
                     await supabase.auth.signOut()
-                    window.location.href = 'teacher_login.html'
+                    window.location.href = 'index.html'
                 })
             }
             if (userEmailSpan && currentUser) {
